@@ -24,8 +24,8 @@ yl<-list(y1)
 i=2
 
 replicate(d-1, {
-  x<<-xl[[i]]<<-x-rnorm(n, 0, abs(rnorm(1, 0.1, 0.5))) #gamma, inverse wishart, distributions
-  y<<-yl[[i]]<<-y-rnorm(n, 0, abs(rnorm(1, 0.1, 0.5)))
+  x<<-xl[[i]]<<-x-rnorm(n, 0, abs(rnorm(1, 0.2, 1))) #gamma, inverse wishart, distributions
+  y<<-yl[[i]]<<-y-rnorm(n, 0, abs(rnorm(1, 0.2, 1)))
   points(x, y, col=cols, pch=16)
   i<<-i+1
 })
@@ -58,13 +58,13 @@ rownames(dm2)<-1:nrow(dm2)
 
 threshold<-quantile(dm2$distance, 0.33)
 
-dm2<-dm2[dm2$distance<=threshold,]
+dmt<-dm2[dm2$distance<=threshold,]
 
 #prefs
-wrp<-as.numeric(sample(rownames(dm2), per5, prob=(1/dm2$distance))) #rows containing preferred pairs
+wrp<-as.numeric(sample(rownames(dmt), per5, prob=(1/dmt$distance))) #rows containing preferred pairs
 
 #avoids
-wra<-as.numeric(sample(setdiff(rownames(dm2), wrp), per5, prob=(1/dm2[setdiff(rownames(dm2), wrp), "distance"])))
+wra<-as.numeric(sample(setdiff(rownames(dmt), wrp), per5, prob=(1/dmt[setdiff(rownames(dmt), wrp), "distance"])))
 
 dsts<-lapply(1:d, function(i) as.matrix(dist(xm[xm$day==i, c("x", "y")], diag=FALSE, upper=FALSE)))
 
@@ -87,12 +87,32 @@ distrb<-ecdf(unlist(dsts))
 starttime<-Sys.time()
 
 for (k in 1:(d-1)){
+  dy1<-xm2[xm2$day==k,]
+  
+  dy1$group<-0
+  
+  distmat<-as.matrix(dist(dy1[,2:3]))
+  dimnames(distmat)<-list(paste0("id",1:n), paste0("id", 1:n))
+  distmat[upper.tri(distmat)]<-NA
+  
+  distmat[as.matrix(pp)]<-distmat[as.matrix(pp)]*0.1
+  distmat[as.matrix(ap)]<-distmat[as.matrix(ap)]*10
+  
+  distmat[upper.tri(distmat)]<-t(distmat)[upper.tri(distmat)]
 
+  num_clust<-floor(n/4.5)
+  xk<-kmeans(distmat, num_clust, nstart=3)
+  
+  
+  
   dm<-as.matrix(dist(xm2[xm2$day==k, c("x", "y")]))
   diag(dm)<-NA
   dimnames(dm)<-list(paste0("id",1:n), paste0("id", 1:n))
   dm2<-reduce_pairs(mat2dat(as.matrix(dm), "distance"), "ID1", "ID2")
   rownames(dm2)<-1:nrow(dm2)
+  
+  
+  
   
   #join probs for rand and prefer
   dm2$join_prob<-1-distrb(dm2$distance)
@@ -113,9 +133,7 @@ for (k in 1:(d-1)){
   
   g1<-dm2[which(dm2$grouped==1),]
   
-  dy1<-xm2[xm2$day==k,]
-  
-  dy1$group<-0
+
   #group connected animals
   
   counter<-1
