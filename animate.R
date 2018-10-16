@@ -15,8 +15,10 @@ ldf<-split(tiny_xm2, as.factor(tiny_xm2$day))
 
 tween_data <- tween_states(ldf, tweenlength = 1,
                            statelength = 0, 
-                           ease = "back-in-out", 
+                           ease = "linear", 
                            nframe = 500)
+#circular in-out might be best so far
+#maybe stick with circles
 
 gcols=rainbow(n, alpha=0.4)
 
@@ -24,10 +26,10 @@ windows()
 for(i in 1:max(tween_data$.frame)) {
   # png(file=paste0("pngs/testcase", sprintf("%04d", i), ".png"))
   plot(y~x, data=tween_data[tween_data$.frame==i,], 
-     col=gcols, pch=15, cex=1,
-     xlim=c(-80, 80), ylim=c(-60,60),
+     col=gcols, pch=16, cex=1,
+     xlim=c(-60, 60), ylim=c(-60,60),
      xlab=NA, ylab=NA, xaxt="n", yaxt="n")
-   Sys.sleep(.1)
+   Sys.sleep(.15)
   # dev.off()
 }
 
