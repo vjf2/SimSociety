@@ -52,3 +52,23 @@ el_pp<-as.data.frame(el_pp)
 
 el_pp$status<-"preference"
 
+
+#add to preference
+
+new_prefs<-matrix(c(93,14,93,91,66,56,56,31,79,40,96,47,93,12,90,23,52,47,47,16), ncol=2, byrow=TRUE)
+
+new_prefs<-apply(new_prefs, 2, function(x) paste0("id", x))
+
+new_rands<-matrix(c(2,5,4,9,2,10,4,15,4,5,3,4,4,40,4,26,11,55,5,13), ncol=2, byrow=TRUE)
+
+new_rands<-apply(new_rands, 2, function(x) paste0("id", x))
+
+
+
+
+
+
+
+
+
+

@@ -14,14 +14,20 @@ options(stringsAsFactors = FALSE)
 set.seed(2)
 
 n<-100
-d<-500
+d<-5000
 
 xnet<-net.holme.kim(n, 3, 1)
 ixnet<-as.undirected(to.igraph(xnet))
+
+load("decent_pp.RData")
+fnet<-graph_from_edgelist(as.matrix(decent_pp), directed=FALSE)
+
+ixnet<-fnet
+
 layout<-layout.fruchterman.reingold(ixnet)
 tkcs<-layout*2
-el<-get.edgelist(ixnet)
-el_pp<-apply(el, 2, function(x) paste0("id", x)) #add id prefix
+el_pp<-get.edgelist(ixnet)
+# el_pp<-apply(el, 2, function(x) paste0("id", x)) #add id prefix
 colnames(el_pp)<-c("ID1", "ID2")
 el_pp<-as.data.frame(el_pp)
 el_pp$status<-"preference"
@@ -87,7 +93,7 @@ dm2<-reduce_pairs(dm2, "ID1", "ID2")
 dmt<-merge_pairs(dm2, el_pp, "ID1", "ID2", all.x=TRUE, all.y=FALSE)
 dmtr<-dmt[which(is.na(dmt$status)),]
 #need to subtract for random
-dmta<-dmtr[which(dmtr$VI>0.05),]
+dmta<-dmtr[which(dmtr$VI>0.20),]
 
 #prefs
 # wrp<-sample(rownames(dmt), per5, prob=(1/dmt$VI)) #rows containing preferred pairs
@@ -274,7 +280,36 @@ abline(lm(SRI~VI+0, data=check[which(check$status=="avoidance"),]), col="red", l
 abline(lm(SRI~VI+0, data=check[which(check$status=="preference"),]), col="green", lwd=2)
 
 
-# save.image(file="simulation_output.RData")
+#use results to reassign classifications, then re-run
+
+check<-reduce_pairs(check, "ID1", "ID2")
+mod<-lm(SRI~VI+0, data=check)
+windows();plot(mod$residuals, col=as.factor(check$status))
+abline(h=0.05, lty=2)
+abline(h=-0.05, lty=2)
+
+check$resid<-mod$residuals
+
+#iterative process
+
+p2r<-check[check$status=="preference" & check$resid<=0, 1:2]
+r2p<-check[check$status=="random" & check$resid>0.025, 1:2]
+
+#need code to remove p2r from pp
+
+rm_rows<-apply(p2r, 1, function(x) {y<-rownames(pp[which(pp$ID1==x[1] & pp$ID2==x[2]),]); return(y)})
+
+pp<-pp[!rownames(pp) %in% rm_rows,]
+
+pp<-rbind(pp, r2p)
+
+rm_rows<-apply(r2p, 1, function(x) {y<-rownames(rp[which(rp$ID1==x[1] & rp$ID2==x[2]),]); return(y)})
+
+rp<-rp[!rownames(rp) %in% rm_rows,]
+
+rp<-rbind(rp, p2r)
+
+#save.image(file="simulation_output.RData")
 
 #match VI to AI
 
