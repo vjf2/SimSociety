@@ -41,14 +41,34 @@ walk <- function(n.times=100,
     x<- xl[[i]] <- newx
     y<- yl[[i]] <-newy
   }
-return(list(x1, y1))
+
+  mvmt<-cbind(unlist(xl), unlist(yl))
+  
+  return(mvmt)
   
   }
 
 set.seed(101)
 test<-walk(100)
 
+#starting coordinates
 
-#our walk model 
-x<<-xl[[i]]<<-x-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5))) #gamma, inverse wishart, distributions
-y<<-yl[[i]]<<-y-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5)))
+x<-x1<-tkcs[,1]
+y<-y1<-tkcs[,2]
+
+n=2
+
+w2<-lapply(1:n, function(i){              
+                        walk(n.times=10000,
+                        xlim=c(x[i]-20,x[i]+20),
+                        ylim=c(y[i]-20,y[i]+20),
+                        start=c(x[i],y[i]),
+                        stepsize=c(1,1))
+          })
+
+plot(w2[[1]]) #[[1]],w2[[2]][[2]])
+
+points(x1[1], y1[1], col="blue", pch=16) #starting point
+
+w3<-do.call("rbind", w2)
+

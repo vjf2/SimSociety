@@ -11,10 +11,10 @@ library(rgeos)
 
 options(stringsAsFactors = FALSE)
 
-set.seed(2)
+set.seed(3)
 
 n<-100
-d<-5000
+d<-500
 
 xnet<-net.holme.kim(n, 3, 1)
 ixnet<-as.undirected(to.igraph(xnet))
@@ -37,33 +37,57 @@ x<-x1<-tkcs[,1]
 y<-y1<-tkcs[,2]
 
 cols=rainbow(n, alpha=0.3)
-windows()
-plot(x1, y1, pch=21, bg=cols, xlim=c(-150,150), ylim=c(-150, 150), asp=1)
 
-xl<-list(x1)
-yl<-list(y1)
+{# windows()
+# plot(x1, y1, pch=21, bg=cols, xlim=c(-150,150), ylim=c(-150, 150), asp=1)
+# 
+# xl<-list(x1)
+# yl<-list(y1)
+# 
+# i=2
+# 
+# replicate(d-1, {
+#   x<<-xl[[i]]<<-x-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5))) #gamma, inverse wishart, distributions
+#   y<<-yl[[i]]<<-y-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5)))
+#   points(x, y, col=cols, pch=16)
+#   i<<-i+1
+# })
+# 
+# xs<-do.call("rbind", xl)
+# colnames(xs)<-paste0("id", 1:n)
+# ys<-do.call("rbind", yl)
+# colnames(ys)<-paste0("id", 1:n)
+# 
+# xm<-melt(xs)[,-1]
+# xm[,3]<-as.vector(ys)
+# 
+# names(xm)<-c("id", "x", "y")
+# xm[,"day"]<-rep(1:d, n)
+# 
+# text(xm[xm$day==1, c("x", "y", "id")], cex=1.2)
+} #old random walk
 
-i=2
+maxDist<-10
 
-replicate(d-1, {
-  x<<-xl[[i]]<<-x-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5))) #gamma, inverse wishart, distributions
-  y<<-yl[[i]]<<-y-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5)))
-  points(x, y, col=cols, pch=16)
-  i<<-i+1
+w2<-lapply(1:n, function(i){              
+  walk(n.times=d,
+       xlim=c(x[i]-maxDist,x[i]+maxDist),
+       ylim=c(y[i]-maxDist,y[i]+maxDist),
+       start=c(x[i],y[i]),
+       stepsize=c(1,1))
 })
 
-xs<-do.call("rbind", xl)
-colnames(xs)<-paste0("id", 1:n)
-ys<-do.call("rbind", yl)
-colnames(ys)<-paste0("id", 1:n)
+xm<-as.data.frame(do.call("rbind", w2))
 
-xm<-melt(xs)[,-1]
-xm[,3]<-as.vector(ys)
+xm$id<-paste0("id", rep(1:n, each=d))
+xm$day<-rep(1:d, n)
 
-names(xm)<-c("id", "x", "y")
-xm[,"day"]<-rep(1:d, n)
+names(xm)[1:2]<-c("x", "y")
 
-text(xm[xm$day==1, c("x", "y", "id")], cex=1.2)
+windows();plot(xm[,1:2], col=cols[as.factor(xm[,3])])
+points(x,y, pch=15)
+
+xm<-xm[,c(3,1:2,4)]
 
 dm<-as.matrix(dist(xm[xm$day==1, c("x", "y")]))
 diag(dm)<-NA
@@ -110,6 +134,12 @@ rp<-dmtr[setdiff(rownames(dmtr), wra),1:2]
 ppm<-pp
 pptogether<-list()
 
+#costs
+pref_cost<-0.05
+rand_cost<-0.5
+avoid_cost<-20
+
+
 starttime<-Sys.time()
 
 # all_mats<-list()
@@ -129,11 +159,11 @@ for (k in 1:(d-1)){
   
   #need to fix indexing
 
-  distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]<-distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]*0.1
+  distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]<-distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]*pref_cost
   
-  distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]<-distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]+5  
+  distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]<-distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]+rand_cost  
   
-  distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]<-distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]*20
+  distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]<-distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]*avoid_cost
   # distmat[lower.tri(distmat)]<-t(distmat)[lower.tri(distmat)]
   foragers<-paste0("id", sample(1:n, n*0.15))
   distmat<-distmat[setdiff(rownames(distmat),foragers),
@@ -289,6 +319,9 @@ abline(h=0.05, lty=2)
 abline(h=-0.05, lty=2)
 
 check$resid<-mod$residuals
+
+# write.csv(check, "dolphin_sim_res.csv")
+# write.csv(xm2, "dolphin_sim.csv")
 
 #iterative process
 
