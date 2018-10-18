@@ -5,8 +5,8 @@ library(tweenr)
 tiny_xm2<-xm2[xm2$day %in% 400:450,]
 
 #jitter points
-tiny_xm2$x<-jitter(tiny_xm2$x, amount=1)
-tiny_xm2$y<-jitter(tiny_xm2$y, amount=1)
+tiny_xm2$x<-jitter(tiny_xm2$x, amount=0.5)
+tiny_xm2$y<-jitter(tiny_xm2$y, amount=0.5)
 
 ldf<-split(tiny_xm2, as.factor(tiny_xm2$day))
 # ldf<-c(ldf, ldf[1])

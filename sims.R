@@ -11,16 +11,18 @@ library(rgeos)
 
 options(stringsAsFactors = FALSE)
 
-set.seed(3)
+setwd("C:/Users/froug/Desktop/PizaRocaReview")
+
+set.seed(4)
 
 n<-100
 d<-500
 
-xnet<-net.holme.kim(n, 3, 1)
-ixnet<-as.undirected(to.igraph(xnet))
+# xnet<-net.holme.kim(n, 3, 1)
+# ixnet<-as.undirected(to.igraph(xnet))
 
-load("decent_pp.RData")
-fnet<-graph_from_edgelist(as.matrix(decent_pp), directed=FALSE)
+load("decent_pp2.RData")
+fnet<-graph_from_edgelist(as.matrix(decent_pp2), directed=FALSE)
 
 ixnet<-fnet
 
@@ -38,62 +40,28 @@ y<-y1<-tkcs[,2]
 
 cols=rainbow(n, alpha=0.3)
 
-{# windows()
-# plot(x1, y1, pch=21, bg=cols, xlim=c(-150,150), ylim=c(-150, 150), asp=1)
-# 
-# xl<-list(x1)
-# yl<-list(y1)
-# 
-# i=2
-# 
-# replicate(d-1, {
-#   x<<-xl[[i]]<<-x-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5))) #gamma, inverse wishart, distributions
-#   y<<-yl[[i]]<<-y-rnorm(n, 0, abs(rnorm(1, 0.2, 0.5)))
-#   points(x, y, col=cols, pch=16)
-#   i<<-i+1
-# })
-# 
-# xs<-do.call("rbind", xl)
-# colnames(xs)<-paste0("id", 1:n)
-# ys<-do.call("rbind", yl)
-# colnames(ys)<-paste0("id", 1:n)
-# 
-# xm<-melt(xs)[,-1]
-# xm[,3]<-as.vector(ys)
-# 
-# names(xm)<-c("id", "x", "y")
-# xm[,"day"]<-rep(1:d, n)
-# 
-# text(xm[xm$day==1, c("x", "y", "id")], cex=1.2)
-} #old random walk
-
 maxDist<-10
 
-w2<-lapply(1:n, function(i){              
-  walk(n.times=d,
-       xlim=c(x[i]-maxDist,x[i]+maxDist),
-       ylim=c(y[i]-maxDist,y[i]+maxDist),
-       start=c(x[i],y[i]),
-       stepsize=c(1,1))
-})
+walks<-lapply(1:n, function(i){              
+  bounded_walk(n.times=d, maxDist, start=c(x[i],y[i]))})
 
-xm<-as.data.frame(do.call("rbind", w2))
+xm<-as.data.frame(do.call("rbind", walks))
 
 xm$id<-paste0("id", rep(1:n, each=d))
 xm$day<-rep(1:d, n)
 
 names(xm)[1:2]<-c("x", "y")
 
-windows();plot(xm[,1:2], col=cols[as.factor(xm[,3])])
+windows();plot(xm[,1:2], col=cols[as.factor(xm[,3])], pch=20)
 points(x,y, pch=15)
 
-xm<-xm[,c(3,1:2,4)]
+xm<-xm[,c(3,1:2,4)] #rearrange columns
 
 dm<-as.matrix(dist(xm[xm$day==1, c("x", "y")]))
 diag(dm)<-NA
 dimnames(dm)<-list(paste0("id",1:n), paste0("id", 1:n))
 dm2<-reduce_pairs(mat2dat(as.matrix(dm), "distance"), "ID1", "ID2")
-per5<-round(.05*nrow(dm2))
+per5<-round(.06*nrow(dm2))
 
 #limit preferences and avoids to top 1/3 of network
 grid_buffer=20
@@ -111,13 +79,12 @@ mean(VI, na.rm=TRUE)
 vi<-mat2dat(VI, "VI")
 
 ###select pref and avoid
-
 dm2<-merge_pairs(dm2, vi, "ID1", "ID2", all.x=FALSE, all.y=FALSE)
 dm2<-reduce_pairs(dm2, "ID1", "ID2")
 dmt<-merge_pairs(dm2, el_pp, "ID1", "ID2", all.x=TRUE, all.y=FALSE)
 dmtr<-dmt[which(is.na(dmt$status)),]
 #need to subtract for random
-dmta<-dmtr[which(dmtr$VI>0.20),]
+dmta<-dmtr[which(dmtr$VI>0.15),]
 
 #prefs
 # wrp<-sample(rownames(dmt), per5, prob=(1/dmt$VI)) #rows containing preferred pairs
@@ -131,13 +98,17 @@ pp<-el_pp[,1:2]
 ap<-dmta[rownames(dmta) %in% wra, 1:2]
 rp<-dmtr[setdiff(rownames(dmtr), wra),1:2]
 
+###############################
+#Optimize pp network
+
+
 ppm<-pp
 pptogether<-list()
 
 #costs
-pref_cost<-0.05
-rand_cost<-0.5
-avoid_cost<-20
+pref_cost<-0.1
+rand_cost<-1
+avoid_cost<-10
 
 
 starttime<-Sys.time()
@@ -155,16 +126,13 @@ for (k in 1:(d-1)){
   
   distmat<-as.matrix(dist(dy1[,2:3]))
   dimnames(distmat)<-list(paste0("id",1:n), paste0("id", 1:n))  
-  # distmat[lower.tri(distmat)]<-NA
-  
-  #need to fix indexing
 
   distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]<-distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]*pref_cost
   
   distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]<-distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]+rand_cost  
   
   distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]<-distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]*avoid_cost
-  # distmat[lower.tri(distmat)]<-t(distmat)[lower.tri(distmat)]
+
   foragers<-paste0("id", sample(1:n, n*0.15))
   distmat<-distmat[setdiff(rownames(distmat),foragers),
                    setdiff(colnames(distmat),foragers)]
@@ -175,8 +143,6 @@ for (k in 1:(d-1)){
   xc<-hclust(as.dist(distmat))
   xcc<-cutree(xc, k=num_clust)
   
-  # dy1$group<-xk$cluster[match(dy1$id, names(xk$cluster))]
-  
   dy1$group<-xcc[match(dy1$id, names(xcc))]
   
   # keep preferences in group
@@ -184,21 +150,14 @@ for (k in 1:(d-1)){
   ppm$group2<-dy1$group[match(ppm$ID2, dy1$id)]
   implode<-which(ppm$group1==ppm$group2)
   pptogether[[k]]<-length(implode)
-  
-  # loners<-apply(apm[explode,1:2], 1, function(x) sample(c(x), 1))
-  # loners<-sample(loners, floor(length(loners)*.5))
-  # dy1$group[which(dy1$id %in% loners)]<-(num_clust+1):(num_clust+length(unique(loners)))
 
   dy2<-xm2[xm2$day==k+1,]
   
   gs<-unique(na.omit(dy1$group))
   
   for (i in gs){
-     # dy2[which(dy1$group==i), "x"]<-mean(dy1[which(dy1$group==i), "x"])
-     # dy2[which(dy1$group==i), "y"]<-mean(dy1[which(dy1$group==i), "y"])
      nr<-nrow(dy1[which(dy1$group==i),])
      dy1[which(dy1$group==i), "weight"]<-sample(c(2, rep(1, nr-1)), nr)
-     
      dy2[which(dy1$group==i), "x"]<-weighted.mean(dy2[which(dy1$group==i), "x"], 
                                                   dy1[which(dy1$group==i), "weight"])
      dy2[which(dy1$group==i), "y"]<-weighted.mean(dy2[which(dy1$group==i), "y"], 
@@ -220,15 +179,7 @@ for (k in 1:(d-1)){
   xm2[xm2$day==k+1, c("group")]<-dy1$group
   
 
-} #end big loop (takes about 20 sec)
-
-# xm2$group[which(is.na(xm2$group))]<-100:(nrow(xm2[which(is.na(xm2$group)),])+99)
-# xm2$groupid<-paste0(xm2$day, "_",xm2$group)
-# 
-# mat<-simple_ratio(sightings=xm2, group_variable = "groupid", dates="day", IDs="id", symmetric = FALSE)
-# 
-# all_mats[[j]]<-mat
-# }
+} 
 
 endtime<-Sys.time()
 endtime-starttime
@@ -276,14 +227,6 @@ hrxydata<-SpatialPointsDataFrame(xm2[,c("x","y")],xm2["id"])
 
 uds_href<-kernelUD(hrxydata[,1],grid=xy)
 
-# windows()
-# par(mfrow=c(2,5), mar=c(0,0,0,0))
-# for (i in 11:20) {image(uds_href[[i]])}
-
-# hr<-getverticeshr(uds_href, percent=90)
-
-# ka<-kernel.area(uds_href, percent=90, standardize = FALSE, unin="km", unout="km2")
-
 VI<-kerneloverlaphr(uds_href, method = "VI", percent = 90)
 mean(VI)
 
@@ -310,6 +253,12 @@ abline(lm(SRI~VI+0, data=check[which(check$status=="avoidance"),]), col="red", l
 abline(lm(SRI~VI+0, data=check[which(check$status=="preference"),]), col="green", lwd=2)
 
 
+write.csv(xm2, "sim_res_to_test.csv", row.names = FALSE)
+write.csv(check, "sim_cats.csv", row.names = FALSE)
+
+
+
+
 #use results to reassign classifications, then re-run
 
 check<-reduce_pairs(check, "ID1", "ID2")
@@ -325,10 +274,16 @@ check$resid<-mod$residuals
 
 #iterative process
 
-p2r<-check[check$status=="preference" & check$resid<=0, 1:2]
-r2p<-check[check$status=="random" & check$resid>0.025, 1:2]
+p2r<-check[check$status=="preference" & check$resid<=0.025, 1:2];nrow(p2r)
+r2p<-check[check$status=="random" & check$resid>0.025, 1:2];nrow(r2p)
 
-#need code to remove p2r from pp
+#swap preferred and random
+
+r2p_swaps<-identify(check$VI, check$SRI)
+p2r_swaps<-identify(check$VI[check$status=="preference"], check$SRI[check$status=="preference"])
+
+r2p<-check[r2p_swaps,1:2]
+p2r<-check[p2r_swaps,1:2]
 
 rm_rows<-apply(p2r, 1, function(x) {y<-rownames(pp[which(pp$ID1==x[1] & pp$ID2==x[2]),]); return(y)})
 
@@ -389,7 +344,7 @@ ids<-unique(xm2$id)
 j=1
 
 for (i in j:(j+9)){
-  plot(xm$x,xm$y, type="n", xlim=c(-100, 100), ylim=c(-100,100), asp=1)
+  plot(xm$x,xm$y, type="n", xlim=c(-20, 20), ylim=c(-20,20), asp=1)
   points(xm2[xm2$id==ids[i],"x"],xm2[xm2$id==ids[i],"y"], col=NA, bg=cols[i], pch=21)
   points(0, 0, pch=3)
 }
@@ -402,14 +357,13 @@ ids<-unique(xm$id)
 j=1
 
 for (i in j:(j+9)){
-  plot(xm$x,xm$y, type="n", xlim=c(-100, 100), ylim=c(-100,100), asp=1)
+  plot(xm$x,xm$y, type="n", xlim=c(-20, 20), ylim=c(-20,20), asp=1)
   points(xm[xm$id==ids[i],"x"],xm[xm$id==ids[i],"y"], col=NA, bg=cols[i], pch=21)
   points(0, 0, pch=3)
 }
 j=j+10
 
 #network graph
-library(igraph)
 
 g<-graph.adjacency(mat, mode="undirected", diag=FALSE, weighted=TRUE)
 

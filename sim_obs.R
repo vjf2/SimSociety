@@ -182,6 +182,8 @@ kfinal<-lapply(seq_len(num_sim), function(w) {
     xcc<-cutree(xc, k=num_clust)
     dayAssocK<-data.frame(IDs=x1[,3],Group=as.numeric(xcc))
     
+    #assign by gprox
+    
     
     dayAssocK$Permutation<-c(rep(as.character(bd_id[counter]),
                                  nrow(dayAssocK)))
@@ -359,3 +361,12 @@ plot(realSRI~VI, data=results_swap, col=as.factor(affiliation975), bg=as.factor(
 table(results_swap$status, results_swap$affiliation975)
 
 table(results$status, results$affiliation975)
+
+results$numID1<-dcounts[match(results$ID1, names(dcounts))]
+results$numID2<-dcounts[match(results$ID2, names(dcounts))]
+
+falsepos<-results[which(results$status=="random" & results$affiliation975==TRUE),c(1:5, 110:112)]
+
+mean(falsepos$numID1+falsepos$numID2)
+
+mean(results$numID1+results$numID2)
