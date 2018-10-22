@@ -12,6 +12,7 @@ set.seed(4)
 fulldata<-read.csv("output_files/sim_results_2000steps.csv")
 
 answer_key<-read.csv("output_files/sim_categories_2000steps.csv")
+answer_key<-reduce_pairs(answer_key, "ID1", "ID2") #one row per pair
 
 #plot data
 
@@ -174,10 +175,10 @@ endtime-starttime #check run time
 
 sim_surveys<-sapply(1:num_sim, function(i) lapply(nest_days, "[[", i), simplify = FALSE)
 
-sim_surveys<-lapply(1:length(sim_surveys), function(i) lapply(sim_surveys[[i]], function(q) 
-  {names(q)<-c("y", "x", "id")
-  q$date<-dates[i]
-  return(q)}))
+sim_surveys<-lapply(sim_surveys, function(i) lapply(1:length(i), function(q) 
+  {names(i[[q]])<-c("y", "x", "id")
+  i[[q]]$date<-dates[q]
+  return(i[[q]])}))
 
 rm(nest_days)
 
@@ -187,17 +188,14 @@ mean_group_size<-mean(table(all_obs$groupid))
 
 kfinal<-group_assign(data=sim_surveys, id="id", xcoord ="x", ycoord="y", time="date", group_size = mean_group_size)
 
-########HALT, error in group sizes
-
 random_group_sizes<-lapply(kfinal, function(x) mean(table(x$observation_id)))
 mean(unlist(random_group_sizes))
 
-
-masked_randoms<-lapply(kfinal, function(x){
+random_networks<-lapply(kfinal, function(x){
   simple_ratio(sightings=x,
                group_variable="observation_id", 
-               dates="Date", 
-               IDs="dolphin_id", 
+               dates="date", 
+               IDs="id", 
                symmetric=FALSE)})
 
 obs_network<-simple_ratio(sightings=all_obs,
@@ -207,19 +205,17 @@ obs_network<-simple_ratio(sightings=all_obs,
                             symmetric=FALSE)
 
 
-mn<-mat2dat(obs_network, "realSRI")
+obn<-mat2dat(obs_network, "realSRI")
 
-mr<-lapply(masked_randoms, mat2dat)
+rnn<-lapply(random_networks, mat2dat)
 
-for(i in 1:length(mr)) {names(mr[[i]])[3]<-paste0("randSRI", i)}
+for(i in 1:length(rnn)) {names(rnn[[i]])[3]<-paste0("randSRI", i)}
 
-mr<-c(list(mn), mr)
+rnn<-c(list(obn), rnn)
 
-fdata<-Reduce(function(x, y) merge(x, y, all.x = T), mr) #about 2 minutes
+fdata<-Reduce(function(x, y) merge(x, y, all.x = T), rnn) 
 
-#merge removes anything missing, individuals that didn't overlap have NaN and get removed in merge
-
-fdata$quantile975<-apply(fdata, 1, function(x) quantile(as.numeric(x[4:(num_sim+3)]), 1, na.rm=TRUE))
+fdata$quantile975<-apply(fdata, 1, function(x) quantile(as.numeric(x[4:(num_sim+3)]), 0.975, na.rm=TRUE))
 
 fdata$meanSRI<-apply(fdata[,4:(num_sim+3)],1, mean, na.rm=TRUE)
 
@@ -236,17 +232,18 @@ results$dcounts1<-dcounts[match(results$ID1, names(dcounts))]
 results$dcounts2<-dcounts[match(results$ID2, names(dcounts))]
 results$joint_counts<-results$dcounts1+results$dcounts2
 
+#compare against assignments
+
+min_sightings<-35
+
+table(results[results$dcounts1>=min_sightings 
+              & results$dcounts2>=min_sightings,"status"], results[results$dcounts1>=min_sightings 
+                                                        & results$dcounts2>=min_sightings,"affiliation975"])
 windows()
 plot(realSRI~VI, data=results, col=as.factor(affiliation975), bg=as.factor(status), pch=21)
 
 
-table(results[results$dcounts1>=35 
-              & results$dcounts2>=35,"status"], results[results$dcounts1>=35 
-                                                        & results$dcounts2>=35,"affiliation975"])
-
-###ok, try timestamp swapping method
-
-#make in format of sim_surveys
+#Compare against time swapping method (in progress)
 
 sim_surveys_swap<-list()
 
@@ -260,10 +257,6 @@ for (i in 1:num_sim) {
 }
 
 kfinal_swap<-group_assign(data=sim_surveys_swap, id="id", xcoord ="x", ycoord="y", time="day", group_size = mean_group_size)
-
-endtime<-Sys.time()
-
-endtime-starttime #check run time #2.7 hours not in parallel
 
 random_group_sizes<-lapply(kfinal_swap, function(x) mean(table(x$id)))
 mean(unlist(random_group_sizes))
