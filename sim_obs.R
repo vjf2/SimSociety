@@ -149,7 +149,7 @@ uds_href<-kernelUD(hrxydata[,1],grid=xy)
 udsgdf <- as(estUDm2spixdf(uds_href),"SpatialGridDataFrame")
 fullgrid(udsgdf)<-FALSE
 
-cellsize<-udsgdf@grid@cellsize
+gridrad<-udsgdf@grid@cellsize[1]/2
 
 #Set up cluster for parallelization
 #Timing depends on number of cores available
@@ -161,7 +161,7 @@ library(pbapply)
 cl<-makeCluster(detectCores()-1)
 clusterEvalQ(cl, library(sp))
 clusterEvalQ(cl, library(SocGen))
-clusterExport(cl, c("d", "buff_days", "udsgdf", "schedule", "num_sim", "numdol", "cellsize"))
+clusterExport(cl, c("d", "buff_days", "udsgdf", "schedule", "num_sim", "numdol", "gridrad"))
 
 starttime<-Sys.time()
 
@@ -170,7 +170,6 @@ nest_days<-pblapply(seq_len(d), FUN=function(i){
   bound<-buff_days[i,]
   nd<-numdol[i]
   dailygrid<-udsgdf[bound,,drop=TRUE] 
-  
   probweights<-colSums(dailygrid@data, na.rm=TRUE)
   probweights<-probweights[names(probweights) %in% colnames(schedule)[schedule[i,]==TRUE]]
   dc<-coordinates(dailygrid)
@@ -179,7 +178,7 @@ nest_days<-pblapply(seq_len(d), FUN=function(i){
                                                 nd = nd, 
                                                 dc = dc,
                                                 dgdf = dgdf,
-                                                gridrad = cellsize/2), 
+                                                gridrad = gridrad), 
                     simplify=FALSE)
   return(holder) }, cl=cl)
 
