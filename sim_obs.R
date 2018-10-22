@@ -1,3 +1,5 @@
+#Subsample data and run UD null model and timeswap null model
+
 library(SocGen)
 library(adehabitatHR)
 library(rgdal)
@@ -10,20 +12,17 @@ set.seed(4)
 n<-100
 d<-2000
 
-fulldata<-read.csv("sim_res_to_test2000.csv")
+fulldata<-read.csv("output_files/sim_results_2000steps.csv")
 
-answer_key<-read.csv("sim_cats2000.csv")
+answer_key<-read.csv("output_files/sim_categories_2000steps.csv")
 
-#observation areas
-#approx 50 x 50 study site
-#2500 study site
-
-fullsite<-c(-30, -20, 30, 20)
+#plot data
 
 windows()
 plot(fulldata$x, fulldata$y, col=adjustcolor("black", alpha.f=0.3), yaxt="n", ylab=NA, xlab="Subsampled Observations", pch=16)
 axis(2, las=1)
 rect(-10, -10, 20, 10, border="red", lwd=2)
+rect(-19.5, -19.5, 19.5, 19.5, border="green", lwd=2)
 
 #xleft, ybottom, xright, ytop 
 
@@ -76,13 +75,6 @@ points(all_obs$x, all_obs$y, pch=16, col="red")
 length(unique(all_obs$groupid))
 
 points(all_obs[all_obs$day==11,"x"], all_obs[all_obs$day==11,"y"], pch=16, col="blue")
-
-#make grid and home ranges
-
-#test out with full data set
-
-# all_obs<-fulldata[which(fulldata$x<fullsite[3] & fulldata$x>fullsite[1] &
-                          # fulldata$y<fullsite[4] & fulldata$y>fullsite[2]),]
 
 #make daily mcps
 

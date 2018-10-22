@@ -18,7 +18,7 @@ d <- 2000
 # xnet<-net.holme.kim(n, 3, 1)
 # ixnet<-as.undirected(to.igraph(xnet))
 
-load("decent_pp2.RData") #custom list of preferred pairs
+load("input_files/decent_pp2.RData") #custom list of preferred pairs
 
 fnet <- graph_from_edgelist(as.matrix(decent_pp2), directed = FALSE)
 ixnet <- fnet
@@ -257,6 +257,6 @@ legend(
 
 # dev.off()
 
-# write.csv(xm2, "sim_results_2000steps.csv", row.names = FALSE)
-# write.csv(results, "sim_categories_2000steps.csv", row.names = FALSE)
+# write.csv(xm2, "output_files/sim_results_2000steps.csv", row.names = FALSE)
+# write.csv(results, "output_files/sim_categories_2000steps.csv", row.names = FALSE)
 
