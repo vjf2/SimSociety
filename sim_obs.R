@@ -5,8 +5,6 @@ library(rgeos)
 
 options(stringsAsFactors = FALSE)
 
-setwd("C:/Users/froug/Desktop/PizaRocaReview")
-
 set.seed(4)
 
 n<-100
