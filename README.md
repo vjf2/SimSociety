@@ -9,6 +9,10 @@ Simulate societies to compare null models
 
 **animate.R** creates gif of simulation
 
+Input files:
+
+**decent_pp2.RData**: optimized preferred pair network used in example
+
 Output files:
 
 **sim_results_2000steps.csv**: output of an example 2000 step model with individual locations and groups at each step
