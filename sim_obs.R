@@ -9,9 +9,6 @@ options(stringsAsFactors = FALSE)
 
 set.seed(4)
 
-n<-100
-d<-2000
-
 fulldata<-read.csv("output_files/sim_results_2000steps.csv")
 
 answer_key<-read.csv("output_files/sim_categories_2000steps.csv")
@@ -22,28 +19,30 @@ windows()
 plot(fulldata$x, fulldata$y, col=adjustcolor("black", alpha.f=0.3), yaxt="n", ylab=NA, xlab="Subsampled Observations", pch=16)
 axis(2, las=1)
 rect(-10, -10, 20, 10, border="red", lwd=2)
-rect(-19.5, -19.5, 19.5, 19.5, border="green", lwd=2)
+rect(-20, -20, 20, 20, border="green", lwd=2)
 
 #xleft, ybottom, xright, ytop 
 
-t1<-c(-10, 0, 0, 10) 
-t2<-c(0, 0, 10, 10)
-t3<-c(10, 0, 20, 10)
-t4<-c(-10, -10, 0, 0)
-t5<-c(0, -10, 10, 0)
-t6<-c(10, -10, 20, 0)
+t1<-c(-20, 0, -10, 20) 
+t2<-c(-10, 0, 0, 20)
+t3<-c(0, 0, 10, 20)
+t4<-c(10, 0, 20, 20)
+t5<-c(-20, -20, -10, 0)
+t6<-c(-10, -20, 0, 0)
+t7<-c(0, -20, 10, 0)
+t8<-c(10, -20, 20, 0)
 
-rect(t1[1], t1[2], t1[3], t1[4], col=adjustcolor("blue", alpha.f=0.4))
-rect(t2[1], t2[2], t2[3], t2[4], col=adjustcolor("green", alpha.f=0.4))
-rect(t3[1], t3[2], t3[3], t3[4], col=adjustcolor("yellow", alpha.f=0.4))
-rect(t4[1], t4[2], t4[3], t4[4], col=adjustcolor("orange", alpha.f=0.4))
-rect(t5[1], t5[2], t5[3], t5[4], col=adjustcolor("red", alpha.f=0.4))
-rect(t6[1], t6[2], t6[3], t6[4], col=adjustcolor("purple", alpha.f=0.4))
 
+rect(t1[1], t1[2], t1[3], t1[4], col=adjustcolor(rainbow(8)[1], alpha.f=0.4))
+rect(t2[1], t2[2], t2[3], t2[4], col=adjustcolor(rainbow(8)[2], alpha.f=0.4))
+rect(t3[1], t3[2], t3[3], t3[4], col=adjustcolor(rainbow(8)[3], alpha.f=0.4))
+rect(t4[1], t4[2], t4[3], t4[4], col=adjustcolor(rainbow(8)[4], alpha.f=0.4))
+rect(t5[1], t5[2], t5[3], t5[4], col=adjustcolor(rainbow(8)[5], alpha.f=0.4))
+rect(t6[1], t6[2], t6[3], t6[4], col=adjustcolor(rainbow(8)[6], alpha.f=0.4))
+rect(t7[1], t7[2], t7[3], t7[4], col=adjustcolor(rainbow(8)[7], alpha.f=0.4))
+rect(t8[1], t8[2], t8[3], t8[4], col=adjustcolor(rainbow(8)[8], alpha.f=0.4))
 
 sample_days<-seq(2, 2000, 20)
-
-sample_days<-1:d
 
 all_obs<-list()
 all_coords<-list()
@@ -51,7 +50,7 @@ all_coords<-list()
 for(i in sample_days){
   
   day<-fulldata[fulldata$day==i,]
-  squares<-c("t1", sample(paste0("t",2:6), 3)) #bias toward square 1
+  squares<-c("t1", sample(paste0("t",2:8), 3)) #bias toward square 1
   day_obs<-list()
   day_coords<-list()
     
@@ -74,8 +73,6 @@ all_coords<-do.call("rbind", all_coords)
 points(all_obs$x, all_obs$y, pch=16, col="red")
 length(unique(all_obs$groupid))
 
-points(all_obs[all_obs$day==11,"x"], all_obs[all_obs$day==11,"y"], pch=16, col="blue")
-
 #make daily mcps
 
 daily_xydata<-SpatialPointsDataFrame(all_coords[,1:2],data.frame(day=all_coords[,3]))
@@ -93,35 +90,34 @@ n<-length(unique(all_obs$id))
 d<-length(unique(all_obs$day))
 dates<-sort(unique(all_obs$day))
 
-#make fake schedule 
+#Remove any dolphins with less than 5 obs
 dcounts<-table(all_obs$id)
 dolphins<-names(dcounts[dcounts>=5]) 
 
 all_obs<-all_obs[which(all_obs$id %in% dolphins),]
 
-fast_avail<-data.frame(dolphin_id=dolphins, entry=1, depart=2000)
+#Make a dummy schedule until demographic turnover added
+fast_avail<-data.frame(dolphin_id=dolphins, entry=min(all_obs$day), depart=max(all_obs$day))
 
 alive<-Vectorize(FUN=function(r,c) 
   isTRUE(r>=fast_avail$entry[which(fast_avail$dolphin_id==c)] 
          & r<=fast_avail$depart[which(fast_avail$dolphin_id==c)]))
 
-schedule<-outer(as.numeric(dates), dolphins, FUN=alive) #takes 2 min to run
+schedule<-outer(as.numeric(dates), dolphins, FUN=alive)
 
 matnames<-list(as.character(dates),dolphins)
 dimnames(schedule)<-matnames
 
-#need to think about area
+#Approx density
 
 dolphin_density_per_km<-dim(all_obs)[1]/gArea(buff_days)
-
-gArea(buff_days)
 
 areakm<-gArea(buff_days, byid=TRUE)
 numdol<-round(areakm*dolphin_density_per_km)
 numdol<-ifelse(numdol<=1, 2, numdol) 
 numdol<-ifelse(numdol>length(dolphins), length(dolphins), numdol)
 
-num_sim=1000 #number of simulations to run
+num_sim=10 #number of simulations to run
 
 grid_buffer=5
 x <- seq(min(all_obs[,"x"])-grid_buffer,max(all_obs[,"x"])+grid_buffer,by=0.5) 
@@ -130,7 +126,7 @@ xy <- expand.grid(x=x,y=y)
 coordinates(xy) <- ~x+y
 gridded(xy) <- TRUE
 
-#create UDs for each animal and extract the href smoothing parameter (need to manually select h for boundary method)
+#create UDs for each animal
 
 hrxydata<-SpatialPointsDataFrame(all_obs[,c("x","y")],all_obs["id"])
 
@@ -142,8 +138,6 @@ fullgrid(udsgdf)<-FALSE
 gridrad<-udsgdf@grid@cellsize[1]/2
 
 #Set up cluster for parallelization
-#Timing depends on number of cores available
-#3 cores - 1000 sims in 50 min
 
 library(parallel)
 library(pbapply)
@@ -176,29 +170,26 @@ endtime<-Sys.time()
 
 stopCluster(cl)
 
-endtime-starttime #check run time #last run was 1.8 hours
+endtime-starttime #check run time
 
 sim_surveys<-sapply(1:num_sim, function(i) lapply(nest_days, "[[", i), simplify = FALSE)
 
+sim_surveys<-lapply(1:length(sim_surveys), function(i) lapply(sim_surveys[[i]], function(q) 
+  {names(q)<-c("y", "x", "id")
+  q$date<-dates[i]
+  return(q)}))
+
 rm(nest_days)
 
-#save(sim_surveys, file="sim_surveysUDd1000_2000.RData")
-
-#Assign groups, (should take about 35 min for 1000 sims of full data)
+#Assign groups
 
 mean_group_size<-mean(table(all_obs$groupid))
 
-bd_id<-buff_days$id
+kfinal<-group_assign(data=sim_surveys, id="id", xcoord ="x", ycoord="y", time="date", group_size = mean_group_size)
 
-starttime<-Sys.time()
+########HALT, error in group sizes
 
-kfinal_swap<-group_assign(data=sim_surveys, id="id", xcoord ="x", ycoord="y", time="day", group_size = mean_group_size)
-
-endtime<-Sys.time()
-
-endtime-starttime #check run time #2.7 hours not in parallel
-
-random_group_sizes<-lapply(kfinal, function(x) mean(table(x$id)))
+random_group_sizes<-lapply(kfinal, function(x) mean(table(x$observation_id)))
 mean(unlist(random_group_sizes))
 
 
