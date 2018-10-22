@@ -248,7 +248,7 @@ plot(realSRI~VI, data=results, col=as.factor(affiliation975), bg=as.factor(statu
 sim_surveys_swap<-list()
 
 for (i in 1:num_sim) {
-  swapped_obs<-split(all_obs[,1:4], as.factor(all_obs$id)) 
+  swapped_obs<-split(all_obs[,c("id", "x", "y", "day")], as.factor(all_obs$id)) 
   swapped_obs<-lapply(swapped_obs, function(x){ x$day<-sample(x$day) 
                                                 return(x)})
   swapped_obs<-do.call("rbind", swapped_obs)
@@ -258,15 +258,10 @@ for (i in 1:num_sim) {
 
 kfinal_swap<-group_assign(data=sim_surveys_swap, id="id", xcoord ="x", ycoord="y", time="day", group_size = mean_group_size)
 
-random_group_sizes<-lapply(kfinal_swap, function(x) mean(table(x$id)))
+random_group_sizes<-lapply(kfinal_swap, function(x) mean(table(x$observation_id)))
 mean(unlist(random_group_sizes))
 
-
-kfinal_swap<-lapply(kfinal_swap, function(x) {names(x)<-c("dolphin_id", "DayGroup", "Date", "observation_id");x})
-kfinal_swap<-lapply(kfinal_swap, function(x) {x[,"observation_id"]<-as.numeric(as.factor(x[,"observation_id"]));x})
-kfinal_swap<-lapply(kfinal_swap, function(x) {x[,"dolphin_id"]<-as.character(x[,"dolphin_id"]);x})
-
-masked_randoms_swap<-lapply(kfinal_swap, function(x){
+randoms_swap<-lapply(kfinal_swap, function(x){
   simple_ratio(sightings=x,
                group_variable="observation_id", 
                dates="day", 
@@ -282,27 +277,22 @@ obs_network<-simple_ratio(sightings=all_obs,
 
 mn<-mat2dat(obs_network, "realSRI")
 
-mrs<-lapply(masked_randoms_swap, mat2dat)
+mrs<-lapply(randoms_swap, mat2dat)
 
 for(i in 1:length(mrs)) {names(mrs[[i]])[3]<-paste0("randSRI", i)}
 
 mrs<-c(list(mn), mrs)
 
-fdatas<-Reduce(function(x, y) merge(x, y, all.x = T), mrs) #about 2 minutes
-
-#merge removes anything missing, individuals that didn't overlap have NaN and get removed in merge
-
-fdatas$quantile975<-apply(fdatas, 1, function(x) quantile(as.numeric(x[4:(num_sim+3)]), 1, na.rm=TRUE))
+fdatas<-Reduce(function(x, y) merge(x, y, all.x = T), mrs)
 
 fdatas$meanSRI<-apply(fdatas[,4:(num_sim+3)],1, mean, na.rm=TRUE)
+
+fdatas$quantile975<-apply(fdatas, 1, function(x) quantile(as.numeric(x[4:(num_sim+3)]), 0.975, na.rm=TRUE))
 
 fdatas$affiliation975<-ifelse(fdatas$realSRI>fdatas$quantile975, TRUE, FALSE)
 fdatas<-fdatas[,grep("rand", names(fdatas), invert=TRUE)]
 
-answer_key<-reduce_pairs(answer_key, "ID1", "ID2")
-
 results_swap<-merge_pairs(answer_key, fdatas, "ID1", "ID2", all.x=TRUE, all.y=FALSE)
-
 
 windows()
 plot(realSRI~VI, data=results_swap, col=as.factor(affiliation975), bg=as.factor(status), pch=21)

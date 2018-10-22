@@ -1,7 +1,8 @@
+#Some code for figure plotting
 
 vcols<-sapply(degree(ixnet), function(x) adjustcolor("purple", alpha.f=(1-((1/x)*3))+0.1))
 
-windows();
+windows()
 
 # pdf(file="preference_network.pdf")
 par(mar=c(0,0,0,0))
@@ -163,18 +164,3 @@ today=xm2[xm2$day==i,]
 plot(y~x, data=today, col=cols[as.factor(today$id)], bg=cols[as.factor(today$id)], pch=21)
 text(today[, c("x", "y", "id")], cex=1.2)
 i=i+1
-
-
-
-#density 
-#overlap of home ranges
-#group size
-#time spent alone
-#how fast the groups change
-
-#calculate output parameters
-
-#average amount of home range overlap
-
-#create spatial lines
-#create UDs
