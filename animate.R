@@ -1,8 +1,10 @@
 library(tweenr)
 
+xm2<-read.csv("sim_res_to_test.csv")
+
 #list of data frames
 
-tiny_xm2<-xm2[xm2$day %in% 400:450,]
+tiny_xm2<-xm2[xm2$day %in% 4000:4050,]
 
 #jitter points
 tiny_xm2$x<-jitter(tiny_xm2$x, amount=0.5)
@@ -20,24 +22,24 @@ tween_data <- tween_states(ldf, tweenlength = 1,
 #circular in-out might be best so far
 #maybe stick with circles
 
-gcols=rainbow(n, alpha=0.4)
+gcols=rainbow(length(unique(xm2$id)), alpha=0.4)
 
 windows()
 for(i in 1:max(tween_data$.frame)) {
-  # png(file=paste0("pngs/testcase", sprintf("%04d", i), ".png"))
+   # png(file=paste0("pngs/testcase", sprintf("%04d", i), ".png"))
   plot(y~x, data=tween_data[tween_data$.frame==i,], 
      col=gcols, pch=16, cex=1,
      xlim=c(-20, 20), ylim=c(-20,20),
      xlab=NA, ylab=NA, xaxt="n", yaxt="n")
     Sys.sleep(.1)
   # ans <- readline("tell me to go!")
-  # dev.off()
+   # dev.off()
 }
 
 
 # setwd("./pngs")
 # shell("magick convert -delay 40 *.png example_1.gif")
 
-#magick convert -delay 40 *.png example_4.gif
+#magick convert -delay 15 *.png simdays400_450.gif
 
 

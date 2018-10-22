@@ -1,9 +1,8 @@
-#plot random points on 10 x 10 grid
+#Generated simulated society
 
 library(colorspace)
 library(SocGen)
-library(reshape2)
-library(fastnet)
+# library(fastnet)
 library(igraph)
 library(adehabitatHR)
 library(rgdal)
@@ -16,7 +15,7 @@ setwd("C:/Users/froug/Desktop/PizaRocaReview")
 set.seed(4)
 
 n<-100
-d<-500
+d<-2000 
 
 # xnet<-net.holme.kim(n, 3, 1)
 # ixnet<-as.undirected(to.igraph(xnet))
@@ -29,7 +28,6 @@ ixnet<-fnet
 layout<-layout.fruchterman.reingold(ixnet)
 tkcs<-layout*2
 el_pp<-get.edgelist(ixnet)
-# el_pp<-apply(el, 2, function(x) paste0("id", x)) #add id prefix
 colnames(el_pp)<-c("ID1", "ID2")
 el_pp<-as.data.frame(el_pp)
 el_pp$status<-"preference"
@@ -52,18 +50,9 @@ xm$day<-rep(1:d, n)
 
 names(xm)[1:2]<-c("x", "y")
 
-windows();plot(xm[,1:2], col=cols[as.factor(xm[,3])], pch=20)
-points(x,y, pch=15)
-
 xm<-xm[,c(3,1:2,4)] #rearrange columns
 
-dm<-as.matrix(dist(xm[xm$day==1, c("x", "y")]))
-diag(dm)<-NA
-dimnames(dm)<-list(paste0("id",1:n), paste0("id", 1:n))
-dm2<-reduce_pairs(mat2dat(as.matrix(dm), "distance"), "ID1", "ID2")
-per5<-round(.06*nrow(dm2))
-
-#limit preferences and avoids to top 1/3 of network
+#limit avoidances to pairs with some minimum home range overlap
 grid_buffer=20
 x <- seq(min(xm[,"x"])-grid_buffer,max(xm[,"x"])+grid_buffer,by=1)
 y <- seq(min(xm[,"y"])-grid_buffer,max(xm[,"y"])+grid_buffer,by=1)
@@ -74,48 +63,37 @@ gridded(xy) <- TRUE
 hrxydata<-SpatialPointsDataFrame(xm[,c("x","y")],xm["id"])
 uds_href<-kernelUD(hrxydata[,1],grid=xy)
 VI<-kerneloverlaphr(uds_href, method = "VI", percent = 90)
+VI[upper.tri(VI)]<-NA
 diag(VI)<-NA
 mean(VI, na.rm=TRUE)
 vi<-mat2dat(VI, "VI")
 
-###select pref and avoid
-dm2<-merge_pairs(dm2, vi, "ID1", "ID2", all.x=FALSE, all.y=FALSE)
-dm2<-reduce_pairs(dm2, "ID1", "ID2")
-dmt<-merge_pairs(dm2, el_pp, "ID1", "ID2", all.x=TRUE, all.y=FALSE)
+###select avoid
+dmt<-merge_pairs(vi, el_pp, "ID1", "ID2", all.x=TRUE, all.y=FALSE)
 dmtr<-dmt[which(is.na(dmt$status)),]
-#need to subtract for random
-dmta<-dmtr[which(dmtr$VI>0.15),]
+dmta<-dmtr[which(dmtr$VI>0.10),]
 
-#prefs
-# wrp<-sample(rownames(dmt), per5, prob=(1/dmt$VI)) #rows containing preferred pairs
-
-#avoids
-wra<-sample(rownames(dmta), per5)
+navoid<-nrow(el_pp)
+wra<-sample(rownames(dmta), navoid)
 
 #Pair Classifications
-# pp<-dm2[rownames(dm2) %in% wrp, 1:2]
 pp<-el_pp[,1:2]
 ap<-dmta[rownames(dmta) %in% wra, 1:2]
 rp<-dmtr[setdiff(rownames(dmtr), wra),1:2]
 
-###############################
-#Optimize pp network
+#Costs
+pref_jw_cost<-0.1
+pref_mcost<-0
+rand_jw_cost<-1
+rand_mcost<-1
+avoid_jw_cost<-10
+avoid_mcost<-2
 
+pref_index<-matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)
+rand_index<-matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)
+avoid_index<-matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)
 
-ppm<-pp
-pptogether<-list()
-
-#costs
-pref_cost<-0.1
-rand_cost<-1
-avoid_cost<-10
-
-
-starttime<-Sys.time()
-
-# all_mats<-list()
-# 
-# for (j in 1:100){
+#Start Simulation
 
 xm2<-xm #original
 xm2$group<-NA
@@ -127,29 +105,21 @@ for (k in 1:(d-1)){
   distmat<-as.matrix(dist(dy1[,2:3]))
   dimnames(distmat)<-list(paste0("id",1:n), paste0("id", 1:n))  
 
-  distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]<-distmat[matrix(c(pp[,1], pp[,2], pp[,2], pp[,1]),ncol=2)]*pref_cost
+  distmat[pref_index]<-distmat[pref_index]*pref_jw_cost+pref_mcost
   
-  distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]<-distmat[matrix(c(rp[,1], rp[,2], rp[,2], rp[,1]),ncol=2)]+rand_cost  
+  distmat[rand_index]<-distmat[rand_index]*rand_jw_cost+rand_mcost  
   
-  distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]<-distmat[matrix(c(ap[,1], ap[,2], ap[,2], ap[,1]),ncol=2)]*avoid_cost
+  distmat[avoid_index]<-distmat[avoid_index]*avoid_jw_cost+avoid_mcost
 
   foragers<-paste0("id", sample(1:n, n*0.15))
   distmat<-distmat[setdiff(rownames(distmat),foragers),
                    setdiff(colnames(distmat),foragers)]
   num_clust<-20
-  
-  #xk<-kmeans(distmat, num_clust, nstart=10)
 
   xc<-hclust(as.dist(distmat))
   xcc<-cutree(xc, k=num_clust)
   
   dy1$group<-xcc[match(dy1$id, names(xcc))]
-  
-  # keep preferences in group
-  ppm$group1<-dy1$group[match(ppm$ID1, dy1$id)]
-  ppm$group2<-dy1$group[match(ppm$ID2, dy1$id)]
-  implode<-which(ppm$group1==ppm$group2)
-  pptogether[[k]]<-length(implode)
 
   dy2<-xm2[xm2$day==k+1,]
   
@@ -164,8 +134,6 @@ for (k in 1:(d-1)){
                                                   dy1[which(dy1$group==i), "weight"])
   }
   
-  #need to make pp stickier
-  
   comp<-cbind(dy1, dy2[,2:3])
   comp$distance<-apply(comp, 1, function(x) dist(rbind(c(x[2], x[3]),
                                                        c(x[7], x[8]))))
@@ -173,18 +141,13 @@ for (k in 1:(d-1)){
   
   comp$x1<-ifelse(comp$distance>20, (comp$x+comp$x1)/2, comp$x1)
   comp$y1<-ifelse(comp$distance>20, (comp$y+comp$y1)/2, comp$y1)
-  
-  #modify xm2
+
   xm2[xm2$day==k+1, c("x", "y")]<-dy2[,c("x", "y")]
   xm2[xm2$day==k+1, c("group")]<-dy1$group
-  
-
 } 
 
-endtime<-Sys.time()
-endtime-starttime
-
-xm2$group[which(is.na(xm2$group))]<-100:(nrow(xm2[which(is.na(xm2$group)),])+99)
+#Assign lone individuals unique group numbers
+xm2$group[which(is.na(xm2$group))]<-n:(nrow(xm2[which(is.na(xm2$group)),])+(n-1))
 xm2$groupid<-paste0(xm2$day, "_",xm2$group)
 mean(table(xm2$groupid))
 
@@ -207,29 +170,15 @@ par(mfrow=c(1,2))
 hist(table(xm2$groupid), nclass=30)
 hist(mat, nclass=20)
 
-#time alone
-sum(table(xm2$groupid)==1)/length(unique(xm2$groupid)) #not correct?
-
-
-#create a grid on which to model animal home ranges
-grid_buffer=20
-
-x <- seq(min(xm2[,"x"])-grid_buffer,max(xm2[,"x"])+grid_buffer,by=0.5) # where resolution is the pixel size you desire. 100 is the smallest i would go, if you make it larger you'll get coarser resolution, but faster runtimes
-y <- seq(min(xm2[,"y"])-grid_buffer,max(xm2[,"y"])+grid_buffer,by=0.5)
-
-xy <- expand.grid(x=x,y=y)
-coordinates(xy) <- ~x+y
-gridded(xy) <- TRUE
+#tpercent groups size=1
+sum(table(xm2$groupid)==1)/length(unique(xm2$groupid))
 
 #create UDs for each animal and extract the href smoothing parameter (need to manually select h for boundary method)
 
 hrxydata<-SpatialPointsDataFrame(xm2[,c("x","y")],xm2["id"])
-
 uds_href<-kernelUD(hrxydata[,1],grid=xy)
-
 VI<-kerneloverlaphr(uds_href, method = "VI", percent = 90)
 mean(VI)
-
 vi<-mat2dat(VI, "VI")
 
 #check categories
@@ -240,156 +189,27 @@ ap2$status<-"avoidance"
 
 p2<-rbind(pp2, rp2, ap2)
 
-check<-merge_pairs(p2, vi, "ID1", "ID2", all.x = TRUE, all.y=FALSE)
+results<-merge_pairs(p2, vi, "ID1", "ID2", all.x = TRUE, all.y=FALSE)
 
 windows()
-plot(SRI~VI, data=check, type="n")
-points(SRI~VI, data=check[which(check$status=="random"),], col="grey")
-points(SRI~VI, data=check[which(check$status=="avoidance"),], col="red")
-points(SRI~VI, data=check[which(check$status=="preference"),], col="green")
+# pdf(file="sim_res2000.pdf")
+plot(SRI~VI, data=results, type="n", xlab="Home Range Overlap", ylab="Association Index", yaxt="n", cex.lab=1.25)
+points(SRI~VI, data=results[which(results$status=="random"),], 
+       col=adjustcolor("grey", alpha.f=0.4), pch=16)
+points(SRI~VI, data=results[which(results$status=="avoidance"),], 
+       col=adjustcolor("red", alpha.f=0.4), pch=16)
+points(SRI~VI, data=results[which(results$status=="preference"),], 
+       col=adjustcolor("green", alpha.f=0.4), pch=16)
+axis(2, las=1)
 
-abline(lm(SRI~VI+0, data=check[which(check$status=="random"),]), col="grey", lwd=2)
-abline(lm(SRI~VI+0, data=check[which(check$status=="avoidance"),]), col="red", lwd=2)
-abline(lm(SRI~VI+0, data=check[which(check$status=="preference"),]), col="green", lwd=2)
+abline(lm(SRI~VI+0, data=results[which(results$status=="random"),]), col="grey", lwd=1)
+abline(lm(SRI~VI+0, data=results[which(results$status=="avoidance"),]), col="red", lwd=1)
+abline(lm(SRI~VI+0, data=results[which(results$status=="preference"),]), col="green", lwd=1)
 
+legend("topleft", pch=16, legend=c("Preference", "Random", "Avoidance"), col=c("green", "grey", "red"), cex=1.25)
 
-write.csv(xm2, "sim_res_to_test.csv", row.names = FALSE)
-write.csv(check, "sim_cats.csv", row.names = FALSE)
+# dev.off()
 
+# write.csv(xm2, "sim_res_to_test2000.csv", row.names = FALSE)
+# write.csv(results, "sim_cats2000.csv", row.names = FALSE)
 
-
-
-#use results to reassign classifications, then re-run
-
-check<-reduce_pairs(check, "ID1", "ID2")
-mod<-lm(SRI~VI+0, data=check)
-windows();plot(mod$residuals, col=as.factor(check$status))
-abline(h=0.05, lty=2)
-abline(h=-0.05, lty=2)
-
-check$resid<-mod$residuals
-
-# write.csv(check, "dolphin_sim_res.csv")
-# write.csv(xm2, "dolphin_sim.csv")
-
-#iterative process
-
-p2r<-check[check$status=="preference" & check$resid<=0.025, 1:2];nrow(p2r)
-r2p<-check[check$status=="random" & check$resid>0.025, 1:2];nrow(r2p)
-
-#swap preferred and random
-
-r2p_swaps<-identify(check$VI, check$SRI)
-p2r_swaps<-identify(check$VI[check$status=="preference"], check$SRI[check$status=="preference"])
-
-r2p<-check[r2p_swaps,1:2]
-p2r<-check[p2r_swaps,1:2]
-
-rm_rows<-apply(p2r, 1, function(x) {y<-rownames(pp[which(pp$ID1==x[1] & pp$ID2==x[2]),]); return(y)})
-
-pp<-pp[!rownames(pp) %in% rm_rows,]
-
-pp<-rbind(pp, r2p)
-
-rm_rows<-apply(r2p, 1, function(x) {y<-rownames(rp[which(rp$ID1==x[1] & rp$ID2==x[2]),]); return(y)})
-
-rp<-rp[!rownames(rp) %in% rm_rows,]
-
-rp<-rbind(rp, p2r)
-
-#save.image(file="simulation_output.RData")
-
-#match VI to AI
-
-#mean distance moved in a day
-
-real_prefs<-check
-
-pp2$status<-"preference"
-rp2$status<-"random"
-ap2$status<-"avoidance"
-
-p2_rand<-rbind(pp2, rp2, ap2)
-
-#compare p2_rand and check
-
-#calculate the proportion of time that each individual is alone
-
-group_size<-table(xm2$groupid)
-
-xm2$group_size<-group_size[match(xm2$groupid, names(group_size))]
-
-#individual group sizes
-igs<-aggregate(group_size~id, data=xm2, mean)
-
-ita<-aggregate(group_size~id, data=xm2[which(xm2$group_size==1),], sum)
-ita$group_size<-ita$group_size/d
-
-mean(igs$group_size)
-
-# xm2<-xm2[!xm2$day %in% eod,]
-
-#before
-windows();plot(y~x, data=xm, col=as.factor(xm$id))
-text(xm[xm$day==1, c("x", "y", "id")], cex=1.2)
-
-#after
-windows();plot(y~x, data=xm2, col=cols[as.factor(xm2$id)], bg=cols[as.factor(xm2$id)], pch=21, xlim=c(-150, 150), ylim=c(-150,150), asp=1)
-text(xm2[xm2$day==1, c("x", "y", "id")], cex=1.2)
-
-#individual home ranges
-windows()
-par(mfrow=c(2,5))
-ids<-unique(xm2$id)
-j=1
-
-for (i in j:(j+9)){
-  plot(xm$x,xm$y, type="n", xlim=c(-20, 20), ylim=c(-20,20), asp=1)
-  points(xm2[xm2$id==ids[i],"x"],xm2[xm2$id==ids[i],"y"], col=NA, bg=cols[i], pch=21)
-  points(0, 0, pch=3)
-}
-j=j+10
-
-#original home ranges
-windows()
-par(mfrow=c(2,5))
-ids<-unique(xm$id)
-j=1
-
-for (i in j:(j+9)){
-  plot(xm$x,xm$y, type="n", xlim=c(-20, 20), ylim=c(-20,20), asp=1)
-  points(xm[xm$id==ids[i],"x"],xm[xm$id==ids[i],"y"], col=NA, bg=cols[i], pch=21)
-  points(0, 0, pch=3)
-}
-j=j+10
-
-#network graph
-
-g<-graph.adjacency(mat, mode="undirected", diag=FALSE, weighted=TRUE)
-
-windows();
-plot(g, edge.width = edge_attr(g)$weight*20,
-     edge.curved = rep(-.4,length(edge_attr(g)$weight)),
-     vertex.color = cols, vertex.size=3)
-
-i=1
-windows()
-today=xm2[xm2$day==i,]
-plot(y~x, data=today, col=cols[as.factor(today$id)], bg=cols[as.factor(today$id)], pch=21)
-text(today[, c("x", "y", "id")], cex=1.2)
-i=i+1
-
-
-
-#density 
-#overlap of home ranges
-#group size
-#time spent alone
-#how fast the groups change
-
-#calculate output parameters
-
-#average amount of home range overlap
-
-#create spatial lines
-#create UDs
