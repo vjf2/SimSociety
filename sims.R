@@ -37,6 +37,7 @@ cols = rainbow(n, alpha = 0.3)
 
 maxDist <- 10
 
+#each individual takes a semi-random (Levy flight) bounded walk
 walks <- lapply(1:n, function(i) {
   bounded_walk(n.times = d, maxDist, start = c(x[i], y[i]))
 })
