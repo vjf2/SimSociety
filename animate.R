@@ -24,7 +24,7 @@ tween_data <- tween_states(
 
 gcols = rainbow(length(unique(xm2$id)), alpha = 0.4)
 
-windows()
+dev.new()
 for (i in 1:max(tween_data$.frame)) {
   # png(file=paste0("pngs/frames", sprintf("%04d", i), ".png"))
   plot(

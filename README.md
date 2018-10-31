@@ -13,6 +13,8 @@ Input files:
 
 **decent_pp2.RData**: optimized preferred pair network used in example
 
+*SimSociety now uses the Sah et al. 2014 random modular graph generator found at <https://github.com/prathasah/random-modular-network-generator>
+
 Output files:
 
 **sim_results_2000steps.csv**: output of an example 2000 step model with individual locations and groups at each step

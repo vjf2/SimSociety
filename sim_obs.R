@@ -16,7 +16,7 @@ answer_key<-reduce_pairs(answer_key, "ID1", "ID2") #one row per pair
 
 #plot data
 
-windows()
+dev.new()
 plot(fulldata$x, fulldata$y, col=adjustcolor("black", alpha.f=0.3), yaxt="n", ylab=NA, xlab="Subsampled Observations", pch=16)
 axis(2, las=1)
 rect(-10, -10, 20, 10, border="red", lwd=2)
@@ -239,7 +239,7 @@ min_sightings<-35
 table(results[results$dcounts1>=min_sightings 
               & results$dcounts2>=min_sightings,"status"], results[results$dcounts1>=min_sightings 
                                                         & results$dcounts2>=min_sightings,"affiliation975"])
-windows()
+dev.new()
 plot(realSRI~VI, data=results, col=as.factor(affiliation975), bg=as.factor(status), pch=21)
 
 
@@ -294,7 +294,7 @@ fdatas<-fdatas[,grep("rand", names(fdatas), invert=TRUE)]
 
 results_swap<-merge_pairs(answer_key, fdatas, "ID1", "ID2", all.x=TRUE, all.y=FALSE)
 
-windows()
+dev.new()
 plot(realSRI~VI, data=results_swap, col=as.factor(affiliation975), bg=as.factor(status), pch=21)
 
 

@@ -2,7 +2,7 @@
 
 vcols<-sapply(degree(g), function(x) adjustcolor("purple", alpha.f=(1-((1/x)*3))+0.1))
 
-windows()
+dev.new()
 
 # pdf(file="preference_network.pdf")
 par(mar=c(0,0,0,0))
@@ -17,14 +17,14 @@ plot(g,
      margin=c(0,0,0,0))
 dev.off()
 
-windows()
+dev.new()
 plot(xm[,1:2], col=cols[as.factor(xm[,3])], pch=20)
 points(x1,y1, pch=15) #starting points 
 
 
 #Core home ranges
 ids <- unique(xm$id)
-windows()
+dev.new()
 #pdf(file="core_home_ranges.pdf", width=7, height=3.5)
 par(mar = c(5, 4, 2, 1))
 layout(matrix(
@@ -105,15 +105,15 @@ mean(igs$group_size)
 # xm2<-xm2[!xm2$day %in% eod,]
 
 #before
-windows();plot(y~x, data=xm, col=as.factor(xm$id))
+dev.new();plot(y~x, data=xm, col=as.factor(xm$id))
 text(xm[xm$day==1, c("x", "y", "id")], cex=1.2)
 
 #after
-windows();plot(y~x, data=xm2, col=cols[as.factor(xm2$id)], bg=cols[as.factor(xm2$id)], pch=21, xlim=c(-150, 150), ylim=c(-150,150), asp=1)
+dev.new();plot(y~x, data=xm2, col=cols[as.factor(xm2$id)], bg=cols[as.factor(xm2$id)], pch=21, xlim=c(-150, 150), ylim=c(-150,150), asp=1)
 text(xm2[xm2$day==1, c("x", "y", "id")], cex=1.2)
 
 #individual home ranges
-windows()
+dev.new()
 par(mfrow=c(2,5))
 ids<-unique(xm2$id)
 j=1
@@ -126,7 +126,7 @@ for (i in j:(j+9)){
 j=j+10
 
 #original home ranges
-windows()
+dev.new()
 par(mfrow = c(2, 5))
 ids <- unique(xm$id)
 j = 1
@@ -153,13 +153,13 @@ j = j + 10
 
 g<-graph.adjacency(mat, mode="undirected", diag=FALSE, weighted=TRUE)
 
-windows();
+dev.new();
 plot(g, edge.width = edge_attr(g)$weight*20,
      edge.curved = rep(-.4,length(edge_attr(g)$weight)),
      vertex.color = cols, vertex.size=3)
 
 i=1
-windows()
+dev.new()
 today=xm2[xm2$day==i,]
 plot(y~x, data=today, col=cols[as.factor(today$id)], bg=cols[as.factor(today$id)], pch=21)
 text(today[, c("x", "y", "id")], cex=1.2)

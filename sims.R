@@ -1,5 +1,8 @@
 #Generated simulated society
 
+#library(devtools)
+#install_github("vjf2/SocGen")
+
 library(colorspace)
 library(SocGen)
 library(igraph)
@@ -208,7 +211,7 @@ mean(rp2$SRI)
 mean(ap2$SRI)
 
 #distribution of association indices and group sizes
-windows()
+dev.new()
 par(mfrow = c(1, 2))
 hist(table(xm2$groupid), nclass = 30)
 hist(mat, nclass = 20)
@@ -235,7 +238,7 @@ results <-
   merge_pairs(p2, vi, "ID1", "ID2", all.x = TRUE, all.y = FALSE)
 
 #plot results
-windows()
+dev.new()
 # pdf(file="sim_res2000.pdf")
 plot(
   SRI ~ VI,
