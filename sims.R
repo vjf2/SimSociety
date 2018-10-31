@@ -2,29 +2,53 @@
 
 library(colorspace)
 library(SocGen)
-# library(fastnet)
 library(igraph)
 library(adehabitatHR)
 library(rgdal)
 library(rgeos)
+library(reticulate)
 
 options(stringsAsFactors = FALSE)
 
+use_python("C:/Python27") #add your python 2.7 directory
+
+rmg_dir <- "../random-modular-network-generator-master/" #add directory for Sah 2014 random graph modules
+
+#import python modules and script
+nx <- import("networkx")
+sg <- import_from_path("sequence_generator", path=rmg_dir)
+rmg <- import_from_path("random_modular_generator_variable_modules", path=rmg_dir)
+script <- readLines("generator_base_script.py")
+
+#add graph properties
+n <- 100 #number of nodes
+dg <- 6 #average node degree
+m <- 9 #number of modules
+Q <- 0.75 #modularity
+
+script<-sub("N= [0-9]+", paste0("N= ", n), script)
+script<-sub("d= [0-9]+", paste0("d= ", dg), script)
+script<-sub("m= [0-9]+", paste0("m= ", m), script)
+script<-sub("Q= [0-9]+\\.[0-9]+", paste0("Q= ", Q), script)
+
+writeLines(script, "generator_input_script.py")
+
+#Note that the script uses a random number generator and not all
+#starting configurations will converge on a final graph, so if you
+#receive an error message simply re-run py_run_file until the graph 
+#converges
+
+py_run_file("generator_input_script.py")
+
+g<-read_graph(paste0("output_files/random_graph_poisson_N", n, "_d", dg, ".graphml"), 
+                     format="graphml")
+
 set.seed(4)
 
-n <- 100
-d <- 2000 
-
-# xnet<-net.holme.kim(n, 3, 1)
-# ixnet<-as.undirected(to.igraph(xnet))
-
-load("input_files/decent_pp2.RData") #custom list of preferred pairs
-
-fnet <- graph_from_edgelist(as.matrix(decent_pp2), directed = FALSE)
-ixnet <- fnet
-layout <- layout.fruchterman.reingold(ixnet)
+layout <- layout.fruchterman.reingold(g)
 tkcs <- layout * 2
-el_pp <- get.edgelist(ixnet)
+el_pp <- get.edgelist(g)
+el_pp[,1:2] <- apply(el_pp[,1:2], 2, function(x) paste0("id", x))
 colnames(el_pp) <- c("ID1", "ID2")
 el_pp <- as.data.frame(el_pp)
 el_pp$status <- "preference"
@@ -36,6 +60,7 @@ y <- y1 <- tkcs[, 2]
 cols = rainbow(n, alpha = 0.3)
 
 maxDist <- 10
+d <- 2000 #number of days (time-steps to run simulation)
 
 #each individual takes a semi-random (Levy flight) bounded walk
 walks <- lapply(1:n, function(i) {

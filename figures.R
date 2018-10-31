@@ -1,17 +1,17 @@
 #Some code for figure plotting
 
-vcols<-sapply(degree(ixnet), function(x) adjustcolor("purple", alpha.f=(1-((1/x)*3))+0.1))
+vcols<-sapply(degree(g), function(x) adjustcolor("purple", alpha.f=(1-((1/x)*3))+0.1))
 
 windows()
 
 # pdf(file="preference_network.pdf")
 par(mar=c(0,0,0,0))
-plot(ixnet, 
+plot(g, 
      layout = layout,
-     vertex.size = c(degree(ixnet)/1.5)+1,
+     vertex.size = c(degree(g)/1.5)+1,
      edge.arrow.size = 0, 
      edge.width = 2,
-     edge.curved = rep(-.4,length(E(ixnet))),
+     edge.curved = rep(-.4,length(E(g))),
      vertex.label = NA,
      vertex.color = vcols, 
      margin=c(0,0,0,0))
